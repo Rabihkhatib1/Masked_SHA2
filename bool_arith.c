@@ -8,25 +8,25 @@ uint64_t urandom_to_int() {
 }
 
 share bool_split(uint64_t x) {
-    r = urandom_to_int(size_bytes(x))
-    xb = x ^ r
-    res = [xb,r]
-    return res
+    uint64_t rb = urandom_to_int(size_bytes(x));
+    uint64_t xb = x ^ rb;
+    share res = {{res.xs = xb},{res.r = rb}};
+    return res;
 }
 
 uint64_t bool_comb(share x){
-    return x[0] ^ x[1]
+    return (x.r ^ x.xs);
 }
 
 share arith_split(uint64_t x){
-    r = urandom_to_int(size_bytes(x))
-    xa = x - r
-    res = [xa,r]
-    return res
+    uint64_t ra = urandom_to_int(size_bytes(x));
+    uint64_t xa = x - ra;
+    share res = {{res.xs = xa},{res.r = ra}};
+    return res;
 }
 
-uint64_t arith_comb(x){
-    return (x[0] + x[1]) % 2**64
+uint64_t arith_comb(share x){
+    return (x.r + x.xs) & MODULO;
 }
 
 void b2a(share x) {
@@ -61,4 +61,15 @@ void a2b(share x) {
     }
     xb = xb ^ T;
     x.xs = xb;
+}
+
+void andm(share z,share x,share y) {
+    uint64_t xs = x.xs, xr = x.r, ys = y.xs, yr = y.r;
+    z.xs = ~ys & (~yr & xr | yr & xs) | ys & (yr & xr | ~yr & xs) & MODULO;
+    z.r = xr; 
+}
+
+void andmn(share z,share x,share y) {
+    uint64_t xs = x.xs, xr = x.r, ys = y.xs, yr = y.r;
+    z.xs = ~ys & (~yr & ~xr | yr & ~xs) | ys & (yr & ~xr | ~yr & ~xs) & MODULO;
 }
