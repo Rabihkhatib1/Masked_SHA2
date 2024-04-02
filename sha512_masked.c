@@ -68,7 +68,7 @@ static const uint64_t K[80] = {
      (y)[4] = (unsigned char)(((x)>>24)&255); (y)[5] = (unsigned char)(((x)>>16)&255);     \
      (y)[6] = (unsigned char)(((x)>>8)&255); (y)[7] = (unsigned char)((x)&255); }
 
-#define LOAD64H(x, y)                                                      \
+#define LOAD64H(x, y)                                                        \
    { x = (((uint64_t)((y)[0] & 255))<<56)|(((uint64_t)((y)[1] & 255))<<48) | \
          (((uint64_t)((y)[2] & 255))<<40)|(((uint64_t)((y)[3] & 255))<<32) | \
          (((uint64_t)((y)[4] & 255))<<24)|(((uint64_t)((y)[5] & 255))<<16) | \
@@ -76,13 +76,29 @@ static const uint64_t K[80] = {
 
 
 #define Ch(x,y,z)       (z ^ (x & (y ^ z)))
+#define Ch(x,y,z)       (z.xs ^ andm(x, y ^ z))
+    { ()
+
+    }
+#define Chr(x,y,z)      (z.xr ^ (x.xr & (y.xr ^ z.xr)))
 #define Maj(x,y,z)      (((x | y) & z) | (x & y)) 
 #define S(x, n)         ROR64c(x, n)
 #define R(x, n)         (((x) &(uint64_t)0xFFFFFFFFFFFFFFFF)>>((uint64_t)n))
-#define Sigma0(x)       (S(x, 28) ^ S(x, 34) ^ S(x, 39))
-#define Sigma1(x)       (S(x, 14) ^ S(x, 18) ^ S(x, 41))
-#define Gamma0(x)       (S(x, 1) ^ S(x, 8) ^ R(x, 7))
-#define Gamma1(x)       (S(x, 19) ^ S(x, 61) ^ R(x, 6))
+#define Sigma0(s, x)                                    \
+    { (s.xs = S(x.xs, 28) ^ S(x.xs, 34) ^ S(x.xs, 39)); \
+      (s.xr = S(x.xr, 28) ^ S(x.xr, 34) ^ S(x.xr, 39)); }
+
+#define Sigma1(s, x)                                     \
+    { (s.xs = S(x.xs, 14) ^ S(x.xs, 18) ^ S(x.xs, 41));  \
+      (s.xr = S(x.xr, 14) ^ S(x.xr, 18) ^ S(x.xr, 41));  }
+
+#define Gamma0(s, x)                                 \  
+    { (s.xs = S(x.xs, 1) ^ S(x.xs, 8) ^ R(x.xs, 7)); \
+      (s.xr = S(x.xr, 1) ^ S(x.xr, 8) ^ R(x.xr, 7)); }
+      
+#define Gamma1(s, x)                                   \
+    { (s.xs = S(x.xs, 19) ^ S(x.xs, 61) ^ R(x.xs, 6)); \
+      (s.xr = S(x.xr, 19) ^ S(x.xr, 61) ^ R(x.xr, 6)); }
 #ifndef MIN
    #define MIN(x, y) ( ((x)<(y))?(x):(y) )
 #endif
@@ -90,28 +106,35 @@ static const uint64_t K[80] = {
 /* compress 1024-bits */
 static int sha512_compress(sha512_context *md, unsigned char *buf)
 {
-    uint64_t S[8], W[80], t0, t1;
+    uint64_t W[80];
+    share S[8], W_arith, K_arith, t0, t1, fg, sigma1, sigma0, ch;
     int i;
 
     /* copy state into S */
     for (i = 0; i < 8; i++) {
-        S[i] = md->state[i];
+        S[i] = md->shares[i];
     }
 
     /* copy the state into 1024-bits into W[0..15] */
     for (i = 0; i < 16; i++) {
-        LOAD64H(W[i], buf + (8*i));
+        LOAD64H(W[i], buf + (8*i)); 
     }
 
     /* fill W[16..79] */
     for (i = 16; i < 80; i++) {
-        W[i] = Gamma1(W[i - 2]) + W[i - 7] + Gamma0(W[i - 15]) + W[i - 16];
-    }        
+        W[i] = Gamma1(W[i - 2]) + W[i - 7] + Gamma0(W[i - 15]) + W[i - 16]; // TODO: mask Gamma1 and Gamma0 
+    }    
+
+    arith_share(W_arith, W[i]);    
 
 /* Compress */
     #define RND(a,b,c,d,e,f,g,h,i) \
-    t0 = h + Sigma1(e) + Ch(e, f, g) + K[i] + W[i]; \
-    t1 = Sigma0(a) + Maj(a, b, c);\
+    fg.xs = f.xs ^ g.xs; \
+    fg.xr = f.xr ^ g.xr; \
+    t0.xs = h.xs + b2a(Sigma1(e.xs)) + b2a(Ch(e.xs, fg, g)) + K_arith.xs + W_arith.xs; \
+    t0.xr = h.xr + Sigma1(e.xr) + Ch(e, fg, g.xr) + K_arith.xr + W_arith.xr; \
+    t1.xs = Sigma0(a) + Maj(a, b, c);\
+    t1.xr = Sigma0(a) + Maj(a, b, c);\
     d += t0; \
     h  = t0 + t1;
 
@@ -144,19 +167,21 @@ static int sha512_compress(sha512_context *md, unsigned char *buf)
    @param md   The hash state you wish to initialize
    @return 0 if successful
 */
-int sha512_init(sha512_context * md) {
+int sha512_init(sha512_context *md) {
     if (md == NULL) return 1;
 
     md->curlen = 0;
     md->length = 0;
-    md->state[0] = (uint64_t)0x6a09e667f3bcc908;
-    md->state[1] = (uint64_t)0xbb67ae8584caa73b;
-    md->state[2] = (uint64_t)0x3c6ef372fe94f82b;
-    md->state[3] = (uint64_t)0xa54ff53a5f1d36f1;
-    md->state[4] = (uint64_t)0x510e527fade682d1;
-    md->state[5] = (uint64_t)0x9b05688c2b3e6c1f;
-    md->state[6] = (uint64_t)0x1f83d9abfb41bd6b;
-    md->state[7] = (uint64_t)0x5be0cd19137e2179;
+
+        bool_share(md->shares[0], 0x6a09e667f3bcc908);
+        bool_share(md->shares[1], 0xbb67ae8584caa73b);
+        bool_share(md->shares[2], 0x3c6ef372fe94f82b);
+        bool_share(md->shares[3], 0xa54ff53a5f1d36f1);
+        bool_share(md->shares[4], 0x510e527fade682d1);
+        bool_share(md->shares[5], 0x9b05688c2b3e6c1f);
+        bool_share(md->shares[6], 0x1f83d9abfb41bd6b);
+        bool_share(md->shares[7], 0x5be0cd19137e2179);
+
 
     return 0;
 }
@@ -215,8 +240,7 @@ int sha512_update (sha512_context * md, const unsigned char *in, size_t inlen)
    @param out [out] The destination of the hash (64 bytes)
    @return 0 if successful
 */
-   int sha512_final(sha512_context * md, unsigned char *out)
-   {
+int sha512_final(sha512_context * md, unsigned char *out) {
     int i;
 
     if (md == NULL) return 1;
@@ -224,7 +248,7 @@ int sha512_update (sha512_context * md, const unsigned char *in, size_t inlen)
 
     if (md->curlen >= sizeof(md->buf)) {
      return 1;
- }
+    }
 
     /* increase the length of the message */
     md->length += md->curlen * (uint64_t)8;
