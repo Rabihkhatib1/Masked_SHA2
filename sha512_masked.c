@@ -74,13 +74,10 @@ static const uint64_t K[80] = {
          (((uint64_t)((y)[4] & 255))<<24)|(((uint64_t)((y)[5] & 255))<<16) | \
          (((uint64_t)((y)[6] & 255))<<8)|(((uint64_t)((y)[7] & 255))); }
 
-
-#define Ch(x,y,z)       (z ^ (x & (y ^ z)))
-#define Ch(x,y,z)       (z.xs ^ andm(x, y ^ z))
-    { ()
-
-    }
-#define Chr(x,y,z)      (z.xr ^ (x.xr & (y.xr ^ z.xr)))
+#define Ch(x,y)                                                             \
+    { (y.xs ^ x.xs);                                                        \
+      (y.xr ^ x.xr)  }                                                      \
+    
 #define Maj(x,y,z)      (((x | y) & z) | (x & y)) 
 #define S(x, n)         ROR64c(x, n)
 #define R(x, n)         (((x) &(uint64_t)0xFFFFFFFFFFFFFFFF)>>((uint64_t)n))
@@ -90,15 +87,19 @@ static const uint64_t K[80] = {
 
 #define Sigma1(s, x)                                     \
     { (s.xs = S(x.xs, 14) ^ S(x.xs, 18) ^ S(x.xs, 41));  \
-      (s.xr = S(x.xr, 14) ^ S(x.xr, 18) ^ S(x.xr, 41));  }
+      (s.xr = S(x.xr, 14) ^ S(x.xr, 18) ^ S(x.xr, 41));   }
 
-#define Gamma0(s, x)                                 \  
-    { (s.xs = S(x.xs, 1) ^ S(x.xs, 8) ^ R(x.xs, 7)); \
-      (s.xr = S(x.xr, 1) ^ S(x.xr, 8) ^ R(x.xr, 7)); }
+// #define Gamma0(s, x)                                 \  
+//     { (s.xs = S(x.xs, 1) ^ S(x.xs, 8) ^ R(x.xs, 7)); \
+//       (s.xr = S(x.xr, 1) ^ S(x.xr, 8) ^ R(x.xr, 7))  }
       
-#define Gamma1(s, x)                                   \
-    { (s.xs = S(x.xs, 19) ^ S(x.xs, 61) ^ R(x.xs, 6)); \
-      (s.xr = S(x.xr, 19) ^ S(x.xr, 61) ^ R(x.xr, 6)); }
+// #define Gamma1(s, x)                                   \
+//     { (s.xs = S(x.xs, 19) ^ S(x.xs, 61) ^ R(x.xs, 6)); \
+//       (s.xr = S(x.xr, 19) ^ S(x.xr, 61) ^ R(x.xr, 6))  }
+
+#define Gamma0(x)       (S(x, 1) ^ S(x, 8) ^ R(x, 7))
+#define Gamma1(x)       (S(x, 19) ^ S(x, 61) ^ R(x, 6))
+
 #ifndef MIN
    #define MIN(x, y) ( ((x)<(y))?(x):(y) )
 #endif
@@ -107,7 +108,7 @@ static const uint64_t K[80] = {
 static int sha512_compress(sha512_context *md, unsigned char *buf)
 {
     uint64_t W[80];
-    share S[8], W_arith, K_arith, t0, t1, fg, sigma1, sigma0, ch;
+    share S[8], W_arith, K_arith, temp1, temp2, ch, maj, sigma1, sigma0, ch;
     int i;
 
     /* copy state into S */
@@ -123,21 +124,38 @@ static int sha512_compress(sha512_context *md, unsigned char *buf)
     /* fill W[16..79] */
     for (i = 16; i < 80; i++) {
         W[i] = Gamma1(W[i - 2]) + W[i - 7] + Gamma0(W[i - 15]) + W[i - 16]; // TODO: mask Gamma1 and Gamma0 
-    }    
-
-    arith_share(W_arith, W[i]);    
+    }        
 
 /* Compress */
-    #define RND(a,b,c,d,e,f,g,h,i) \
-    fg.xs = f.xs ^ g.xs; \
-    fg.xr = f.xr ^ g.xr; \
-    t0.xs = h.xs + b2a(Sigma1(e.xs)) + b2a(Ch(e.xs, fg, g)) + K_arith.xs + W_arith.xs; \
-    t0.xr = h.xr + Sigma1(e.xr) + Ch(e, fg, g.xr) + K_arith.xr + W_arith.xr; \
-    t1.xs = Sigma0(a) + Maj(a, b, c);\
-    t1.xr = Sigma0(a) + Maj(a, b, c);\
-    d += t0; \
-    h  = t0 + t1;
-
+    #define RND(a,b,c,d,e,f,g,h,i)                                             \
+       {arith_share(W_arith, W[i]);                                                \
+        arith_share(K_arith, K[i]);                                                \
+        ch.xs = f.xs ^ g.xs;                                                       \
+        ch.xr = f.xr ^ g.xr;                                                       \
+        ch.xs = andm(e,ch) ^ g.xs;                                                \
+        ch.xr = e.xr ^ g.xr;                                                       \
+        maj.xs = andm(a,b) ^ andm(a,c) ^ andm(b,c);                                 \
+        maj.xr = b.xr;                                                              \
+        Sigma1(sigma1, e);                                                         \
+        Sigma0(sigma0, a);                                                        \
+        b2a(h);                                                                         \
+        b2a(ch);                                                                    \
+        b2a(sigma1);                                                               \
+        b2a(sigma0);                                                               \
+        temp1.xs = (h.xs + sigma1.xs + ch.xs + K_arith.xs + W_arith.xs) & MODULO;             \
+        temp1.xr = (h.xr + sigma1.xr + ch.xr + K_arith.xr + W_arith.xr) & MODULO;             \
+        temp2.xs = (sigma0.xs + maj.xs) & MODULO;                                             \
+        temp2.xr = (sigma0.xr + maj.xr) & MODULO;                                             \
+        b2a(temp1);                                                                \
+        b2a(temp2);                                                                \
+        b2a(d);                                                                    \
+        d.xs += temp1.xs & MODULO;                                                             \
+        d.xr += temp1.xr & MODULO;                                                             \
+        h.xs  = (temp1.xs + temp2.xs) & MODULO;                                                \
+        h.xr  = (temp1.xr + temp2.xr) & MODULO;                                                     \                                          
+        a2b(d);                                                                 \
+        a2b(h);}             
+    
     for (i = 0; i < 80; i += 8) {
        RND(S[0],S[1],S[2],S[3],S[4],S[5],S[6],S[7],i+0);
        RND(S[7],S[0],S[1],S[2],S[3],S[4],S[5],S[6],i+1);
@@ -155,7 +173,8 @@ static int sha512_compress(sha512_context *md, unsigned char *buf)
 
     /* feedback */
    for (i = 0; i < 8; i++) {
-        md->state[i] = md->state[i] + S[i];
+        md->shares[i].xs += S[i].xs;
+        md->shares[i].xr += S[i].xr;
     }
 
     return 0;
@@ -296,4 +315,13 @@ int __attribute__ ((noinline)) sha512(const unsigned char *message, size_t messa
     if ((ret = sha512_update(&ctx, message, message_len))) return ret;
     if ((ret = sha512_final(&ctx, out))) return ret;
     return 0;
+}
+
+int main() {
+    const unsigned char *message = "Hello";
+    size_t message_len = sizeof(message)-1;
+    unsigned char *output = {0};
+    if(!sha512(message,message_len,output)){
+        printf("Something is wrong");
+    }
 }
