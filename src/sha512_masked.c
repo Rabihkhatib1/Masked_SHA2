@@ -10,6 +10,7 @@
  */
 
 #include <stdint.h>
+#include <stdio.h>
 #include "sha512.h"
 
 /* the K array */
@@ -108,7 +109,7 @@ static const uint64_t K[80] = {
 static int sha512_compress(sha512_context *md, unsigned char *buf)
 {
     uint64_t W[80];
-    share S[8], W_arith, K_arith, temp1, temp2, ch, maj, sigma1, sigma0, ch;
+    share S[8], W_arith, K_arith, temp1, temp2, ch, maj, sigma1, sigma0;
     int i;
 
     /* copy state into S */
@@ -152,7 +153,7 @@ static int sha512_compress(sha512_context *md, unsigned char *buf)
         d.xs += temp1.xs & MODULO;                                                             \
         d.xr += temp1.xr & MODULO;                                                             \
         h.xs  = (temp1.xs + temp2.xs) & MODULO;                                                \
-        h.xr  = (temp1.xr + temp2.xr) & MODULO;                                                     \                                          
+        h.xr  = (temp1.xr + temp2.xr) & MODULO;                                                     \
         a2b(d);                                                                 \
         a2b(h);}             
     
@@ -317,11 +318,22 @@ int __attribute__ ((noinline)) sha512(const unsigned char *message, size_t messa
     return 0;
 }
 
+void printbytes(uint8_t *array, int size) {
+    for (int i = 0; i < size; i++) {
+        printf("%02X ", array[i]);
+    }
+    printf("\n");
+} 
+
 int main() {
     const unsigned char *message = "Hello";
     size_t message_len = sizeof(message)-1;
-    unsigned char *output = {0};
+    unsigned char output[64] = {0};
+    printbytes(output, 64);
     if(!sha512(message,message_len,output)){
         printf("Something is wrong");
     }
+    printbytes(output, 64);
+    return 0;
+    
 }

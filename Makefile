@@ -1,33 +1,51 @@
-CC = gcc
-CFLAGS = -Wall -g
-OBJ = sha512_masked.o bool_arith.o
+# Thanks to Job Vranish (https://spin.atomicobject.com/2016/08/26/makefile-c-projects/)
+TARGET_EXEC := program
 
-# Path to the include files
-INCLUDES = -I.
+BUILD_DIR := ./build
+SRC_DIRS := ./src
 
-# Define the executable file 
-MAIN = sha512_masked
+# Find all the C and C++ files we want to compile
+# Note the single quotes around the * expressions. The shell will incorrectly expand these otherwise, but we want to send the * directly to the find command.
+SRCS := $(shell find $(SRC_DIRS) -name '*.cpp' -or \( -name '*.c' -and ! -name 'sha512.c' \) -or -name '*.s')
 
-.PHONY: depend clean
+# Prepends BUILD_DIR and appends .o to every src file
+# As an example, ./your_dir/hello.cpp turns into ./build/./your_dir/hello.cpp.o
+OBJS := $(SRCS:%=$(BUILD_DIR)/%.o)
 
-all:    $(MAIN)
-	@echo  Program compiled
+# String substitution (suffix version without %).
+# As an example, ./build/hello.cpp.o turns into ./build/hello.cpp.d
+DEPS := $(OBJS:.o=.d)
 
-$(MAIN): $(OBJ)
-	$(CC) $(CFLAGS) $(INCLUDES) -o $(MAIN) $(OBJ)
+# Every folder in ./src will need to be passed to GCC so that it can find header files
+INC_DIRS := $(shell find . -type d)
+# Add a prefix to INC_DIRS. So moduleA would become -ImoduleA. GCC understands this -I flag
+INC_FLAGS := $(addprefix -I,$(INC_DIRS))
 
-# To obtain object files
-%.o: %.c
-	$(CC) $(CFLAGS) $(INCLUDES) -c $<  -o $@
+# The -MMD and -MP flags together generate Makefiles for us!
+# These files will have .d instead of .o as the output.
+CPPFLAGS := $(INC_FLAGS) -MMD -MP
+COMMON_FLAGS := -g
 
+# The final build step.
+$(BUILD_DIR)/$(TARGET_EXEC): $(OBJS)
+	$(CXX) $(OBJS) -o $@ $(LDFLAGS)
+
+# Build step for C source
+$(BUILD_DIR)/%.c.o: %.c
+	mkdir -p $(dir $@)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(COMMON_FLAGS) -c $< -o $@
+
+# Build step for C++ source
+$(BUILD_DIR)/%.cpp.o: %.cpp
+	mkdir -p $(dir $@)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(COMMON_FLAGS) -c $< -o $@
+
+
+.PHONY: clean
 clean:
-	$(RM) *.o *~ $(MAIN)
+	rm -r $(BUILD_DIR)
 
-depend: .depend
-
-.depend: $(SRCS)
-	rm -f ./.depend
-	$(CC) $(CFLAGS) $(INCLUDES) -MM $^ >  ./.depend;
-
-include .depend
- 
+# Include the .d makefiles. The - at the front suppresses the errors of missing
+# Makefiles. Initially, all the .d files will be missing, and we don't want those
+# errors to show up.
+-include $(DEPS)

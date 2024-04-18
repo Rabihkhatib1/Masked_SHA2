@@ -99,6 +99,7 @@
  */
 
 #include <stdint.h>
+#include <stdio.h>
 #include "sha512.h"
 
 /* the K array */
@@ -361,4 +362,14 @@ int __attribute__ ((noinline)) sha512(const unsigned char *message, size_t messa
     if ((ret = sha512_update(&ctx, message, message_len))) return ret;
     if ((ret = sha512_final(&ctx, out))) return ret;
     return 0;
+}
+
+
+int main() {
+    const unsigned char *message = "Hello";
+    size_t message_len = sizeof(message)-1;
+    unsigned char *output = {0};
+    if(!sha512(message,message_len,output)){
+        printf("Something is wrong");
+    }
 }
