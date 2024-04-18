@@ -11,6 +11,7 @@
 
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 #include "sha512.h"
 
 /* the K array */
@@ -192,16 +193,14 @@ int sha512_init(sha512_context *md) {
 
     md->curlen = 0;
     md->length = 0;
-
-        bool_share(md->shares[0], 0x6a09e667f3bcc908);
-        bool_share(md->shares[1], 0xbb67ae8584caa73b);
-        bool_share(md->shares[2], 0x3c6ef372fe94f82b);
-        bool_share(md->shares[3], 0xa54ff53a5f1d36f1);
-        bool_share(md->shares[4], 0x510e527fade682d1);
-        bool_share(md->shares[5], 0x9b05688c2b3e6c1f);
-        bool_share(md->shares[6], 0x1f83d9abfb41bd6b);
-        bool_share(md->shares[7], 0x5be0cd19137e2179);
-
+    bool_share(md->shares[0], 0x6a09e667f3bcc908);
+    bool_share(md->shares[1], 0xbb67ae8584caa73b);
+    bool_share(md->shares[2], 0x3c6ef372fe94f82b);
+    bool_share(md->shares[3], 0xa54ff53a5f1d36f1);
+    bool_share(md->shares[4], 0x510e527fade682d1);
+    bool_share(md->shares[5], 0x9b05688c2b3e6c1f);
+    bool_share(md->shares[6], 0x1f83d9abfb41bd6b);
+    bool_share(md->shares[7], 0x5be0cd19137e2179);
 
     return 0;
 }
@@ -325,12 +324,13 @@ void printbytes(uint8_t *array, int size) {
     printf("\n");
 } 
 
+// Masked SHA512
 int main() {
-    const unsigned char *message = "Hello";
-    size_t message_len = sizeof(message)-1;
+    const unsigned char *message = "Hello, world!";
+    size_t message_len = strnlen(message,512);
     unsigned char output[64] = {0};
     printbytes(output, 64);
-    if(!sha512(message,message_len,output)){
+    if(sha512(message,message_len,output)){
         printf("Something is wrong");
     }
     printbytes(output, 64);

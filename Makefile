@@ -1,20 +1,25 @@
 # Thanks to Job Vranish (https://spin.atomicobject.com/2016/08/26/makefile-c-projects/)
-TARGET_EXEC := program
+TARGET_EXEC1 := program_masked
+TARGET_EXEC2 := program
 
 BUILD_DIR := ./build
 SRC_DIRS := ./src
 
 # Find all the C and C++ files we want to compile
 # Note the single quotes around the * expressions. The shell will incorrectly expand these otherwise, but we want to send the * directly to the find command.
-SRCS := $(shell find $(SRC_DIRS) -name '*.cpp' -or \( -name '*.c' -and ! -name 'sha512.c' \) -or -name '*.s')
+SRCS_1 := $(filter-out $(SRC_DIRS)/sha512.c, $(shell find $(SRC_DIRS) -name '*.cpp' -or -name '*.c' -or -name '*.s'))
+SRCS_2 := $(filter-out $(SRC_DIRS)/sha512_masked.c, $(shell find $(SRC_DIRS) -name '*.cpp' -or -name '*.c' -or -name '*.s'))
 
 # Prepends BUILD_DIR and appends .o to every src file
 # As an example, ./your_dir/hello.cpp turns into ./build/./your_dir/hello.cpp.o
-OBJS := $(SRCS:%=$(BUILD_DIR)/%.o)
-
+# OBJS := $(SRCS:%=$(BUILD_DIR)/%.o)
+# OBJS = $(filter-out $(BUILD_DIR)/%$(EXCLUDE_FILE).o, $(SRCS:%=$(BUILD_DIR)/%.o), $(OBJS))
+OBJS_1 := $(SRCS_1:%=$(BUILD_DIR)/%.o)
+OBJS_2 := $(SRCS_2:%=$(BUILD_DIR)/%.o)
 # String substitution (suffix version without %).
 # As an example, ./build/hello.cpp.o turns into ./build/hello.cpp.d
-DEPS := $(OBJS:.o=.d)
+DEPS_1 := $(OBJS_1:.o=.d)
+DEPS_2 := $(OBJS_2:.o=.d)
 
 # Every folder in ./src will need to be passed to GCC so that it can find header files
 INC_DIRS := $(shell find . -type d)
@@ -26,9 +31,14 @@ INC_FLAGS := $(addprefix -I,$(INC_DIRS))
 CPPFLAGS := $(INC_FLAGS) -MMD -MP
 COMMON_FLAGS := -g
 
-# The final build step.
-$(BUILD_DIR)/$(TARGET_EXEC): $(OBJS)
-	$(CXX) $(OBJS) -o $@ $(LDFLAGS)
+# Define all target to build both executables
+all: $(BUILD_DIR)/$(TARGET_EXEC1) $(BUILD_DIR)/$(TARGET_EXEC2)
+
+$(BUILD_DIR)/$(TARGET_EXEC1): $(OBJS_1)
+	$(CXX) $(OBJS_1) -o $@ $(LDFLAGS)
+
+$(BUILD_DIR)/$(TARGET_EXEC2): $(OBJS_2)
+	$(CXX) $(OBJS_2) -o $@ $(LDFLAGS)
 
 # Build step for C source
 $(BUILD_DIR)/%.c.o: %.c

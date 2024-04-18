@@ -100,6 +100,7 @@
 
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 #include "sha512.h"
 
 /* the K array */
@@ -364,12 +365,23 @@ int __attribute__ ((noinline)) sha512(const unsigned char *message, size_t messa
     return 0;
 }
 
+void printbytes(uint8_t *array, int size) {
+    for (int i = 0; i < size; i++) {
+        printf("%02X ", array[i]);
+    }
+    printf("\n");
+} 
 
+// Normal SHA512
 int main() {
-    const unsigned char *message = "Hello";
-    size_t message_len = sizeof(message)-1;
-    unsigned char *output = {0};
-    if(!sha512(message,message_len,output)){
+    const unsigned char *message = "Hello, world!";
+    size_t message_len = strnlen(message,512);
+    unsigned char output[64] = {0};
+    printbytes(output, 64);
+    if(sha512(message,message_len,output)){
         printf("Something is wrong");
     }
+    printbytes(output, 64);
+    return 0;
+    
 }
