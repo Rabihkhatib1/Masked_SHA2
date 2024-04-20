@@ -128,46 +128,37 @@ static int sha512_compress(sha512_context *md, unsigned char *buf)
         W[i] = Gamma1(W[i - 2]) + W[i - 7] + Gamma0(W[i - 15]) + W[i - 16]; // TODO: mask Gamma1 and Gamma0 
     }        
 
-    // W_arith = arith_share_r(W_arith, W[0]);
-        // printf("%lx \n",arith_comb(W_arith));                                \                                               
-        // printf("%lx \n",arith_comb(K_arith));                                \
+    W_arith = arith_share_r(W_arith, W[0]);
+
 /* Compress */
     #define RND(a,b,c,d,e,f,g,h,i)                                             \
        {W_arith = arith_share_r(W_arith, W[i]);                                                \
-        K_arith = arith_share_r(K_arith, K[i]);                                                \
+        W_arith = arith_share_r(K_arith, K[i]);                                                \
         ch.xs = f.xs ^ g.xs;                                                       \
         ch.xr = f.xr ^ g.xr;                                                       \
         ch.xs = andm(e,ch) ^ g.xs;                                                \
         ch.xr = e.xr ^ g.xr;                                                       \
-        printf("ch = %lx \n",bool_comb(ch));                                        \
         maj.xs = andm(a,b) ^ andm(a,c) ^ andm(b,c);                                 \
         maj.xr = b.xr;                                                              \
-        printf("maj = %lx \n",bool_comb(maj));                                                  \
         Sigma1(sigma1, e);                                                         \
-        printf("sigma1 = %lx \n",bool_comb(sigma1));                                                  \
         Sigma0(sigma0, a);                                                        \
-        printf("sigma0 = %lx \n",bool_comb(sigma0));                                                  \
-        b2a(&h);                                                                         \
-        printf("h = %lx \n",arith_comb(h));                                                  \
-        b2a(&ch);                                                                       \
-        b2a(&maj);                                                                   \
-        b2a(&sigma1);                                                               \
-        b2a(&sigma0);                                                               \
-        printf("W[i] = %lx \n",arith_comb(W_arith));                                \                                               
-        printf("K[i] = %lx \n",arith_comb(K_arith));                                \
-        temp1.xs = (h.xs + sigma1.xs + ch.xs + K_arith.xs + W_arith.xs) & MODULO;         \
-        temp1.xr = (h.xr + sigma1.xr + ch.xr + K_arith.xr + W_arith.xr) & MODULO;         \
+        b2a(h);                                                                         \
+        b2a(ch);                                                                    \
+        b2a(sigma1);                                                               \
+        b2a(sigma0);                                                               \
+        temp1.xs = (h.xs + sigma1.xs + ch.xs + K_arith.xs + W_arith.xs) & MODULO;             \
+        temp1.xr = (h.xr + sigma1.xr + ch.xr + K_arith.xr + W_arith.xr) & MODULO;             \
         temp2.xs = (sigma0.xs + maj.xs) & MODULO;                                             \
         temp2.xr = (sigma0.xr + maj.xr) & MODULO;                                             \
-        printf("temp1 = %lx \n",arith_comb(temp1));                                \                                               
-        printf("temp2 = %lx \n",arith_comb(temp2));                                \
-        b2a(&d);                                                                    \
-        d.xs  = (d.xs + temp1.xs) & MODULO;                                                             \
-        d.xr  = (d.xr + temp1.xr) & MODULO;                                                             \
+        b2a(temp1);                                                                \
+        b2a(temp2);                                                                \
+        b2a(d);                                                                    \
+        d.xs += temp1.xs & MODULO;                                                             \
+        d.xr += temp1.xr & MODULO;                                                             \
         h.xs  = (temp1.xs + temp2.xs) & MODULO;                                                \
         h.xr  = (temp1.xr + temp2.xr) & MODULO;                                                     \
-        a2b(&d);                                                                 \
-        a2b(&h);}             
+        a2b(d);                                                                 \
+        a2b(h);}             
     
     for (i = 0; i < 80; i += 8) {
        RND(S[0],S[1],S[2],S[3],S[4],S[5],S[6],S[7],i+0);
@@ -182,47 +173,19 @@ static int sha512_compress(sha512_context *md, unsigned char *buf)
 
    #undef RND
 
-    b2a(&S[0]);
-    b2a(&S[1]);
-    b2a(&S[2]);
-    b2a(&S[3]);
-    b2a(&S[4]);
-    b2a(&S[5]);
-    b2a(&S[6]);
-    b2a(&S[7]);
-
-    b2a(&md->shares[0]);
-    b2a(&md->shares[1]);
-    b2a(&md->shares[2]);
-    b2a(&md->shares[3]);
-    b2a(&md->shares[4]);
-    b2a(&md->shares[5]);
-    b2a(&md->shares[6]);
-    b2a(&md->shares[7]);
-
-    printf("S0 = %lx \n",arith_comb(S[0]));
-    printf("S1 = %lx \n",arith_comb(S[1]));
-    printf("S2 = %lx \n",arith_comb(S[2]));
-    printf("S3 = %lx \n",arith_comb(S[3]));
-    printf("S4 = %lx \n",arith_comb(S[4]));
-    printf("S5 = %lx \n",arith_comb(S[5]));
-    printf("S6 = %lx \n",arith_comb(S[6]));
-    printf("S7 = %lx \n",arith_comb(S[7]));
-
-    printf("md->state[0] = %lx \n",arith_comb(md->shares[0]));
-    printf("md->state[1] = %lx \n",arith_comb(md->shares[1]));
-    printf("md->state[2] = %lx \n",arith_comb(md->shares[2]));
-    printf("md->state[3] = %lx \n",arith_comb(md->shares[3]));
-    printf("md->state[4] = %lx \n",arith_comb(md->shares[4]));
-    printf("md->state[5] = %lx \n",arith_comb(md->shares[5]));
-    printf("md->state[6] = %lx \n",arith_comb(md->shares[6]));
-    printf("md->state[7] = %lx \n",arith_comb(md->shares[7]));
+    b2a(S[0]);
+    b2a(S[1]);
+    b2a(S[2]);
+    b2a(S[3]);
+    b2a(S[4]);
+    b2a(S[5]);
+    b2a(S[6]);
+    b2a(S[7]);
 
     /* feedback */
    for (i = 0; i < 8; i++) {
-        md->shares[i].xs = (md->shares[i].xs + S[i].xs) & MODULO;
-        md->shares[i].xr = (md->shares[i].xr + S[i].xr) & MODULO;
-        md->state[i] = arith_comb(md->shares[i]);
+        md->shares[i].xs += S[i].xs & MODULO;
+        md->shares[i].xr += S[i].xr & MODULO;
     }
 
     return 0;

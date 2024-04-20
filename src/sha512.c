@@ -201,8 +201,17 @@ static int sha512_compress(sha512_context *md, unsigned char *buf)
 
 /* Compress */
     #define RND(a,b,c,d,e,f,g,h,i) \
+    printf("ch = %lx \n",Ch(e, f, g));                                \                                               
+    printf("maj = %lx \n",Maj(a, b, c));                                \
+    printf("sigma1 = %lx \n",Sigma1(e));                                \                                               
+    printf("sigma0 = %lx \n",Sigma0(a));                                \
+    printf("h = %lx \n",h);                                \
+    printf("W[i] = %lx \n",W[i]);                                \
+    printf("K[i] = %lx \n",K[i]);                                \
     t0 = h + Sigma1(e) + Ch(e, f, g) + K[i] + W[i]; \
-    t1 = Sigma0(a) + Maj(a, b, c);\
+    t1 = Sigma0(a) + Maj(a, b, c);                  \
+    printf("temp1 = %lx \n",t0);                                \                                               
+    printf("temp2 = %lx \n",t1);                                \
     d += t0; \
     h  = t0 + t1;
 
@@ -219,7 +228,23 @@ static int sha512_compress(sha512_context *md, unsigned char *buf)
 
    #undef RND
 
+    printf("S0 = %lx \n",S[0]);
+    printf("S1 = %lx \n",S[1]);
+    printf("S2 = %lx \n",S[2]);
+    printf("S3 = %lx \n",S[3]);
+    printf("S4 = %lx \n",S[4]);
+    printf("S5 = %lx \n",S[5]);
+    printf("S6 = %lx \n",S[6]);
+    printf("S7 = %lx \n",S[7]);
 
+    printf("md->state[0] = %lx \n",md->state[0]);
+    printf("md->state[1] = %lx \n",md->state[1]);
+    printf("md->state[2] = %lx \n",md->state[2]);
+    printf("md->state[3] = %lx \n",md->state[3]);
+    printf("md->state[4] = %lx \n",md->state[4]);
+    printf("md->state[5] = %lx \n",md->state[5]);
+    printf("md->state[6] = %lx \n",md->state[6]);
+    printf("md->state[7] = %lx \n",md->state[7]);
 
     /* feedback */
    for (i = 0; i < 8; i++) {
