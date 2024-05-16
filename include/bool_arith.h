@@ -20,6 +20,8 @@ typedef struct {
     uint_word_t xr;
 } share;
 
+uint32_t rand_count;
+
 void randombytes(uint_word_t *ptr, int size);
 
 void bool_share(share s, uint_word_t x);
@@ -35,5 +37,7 @@ void a2b(share *x);
 
 uint_word_t andm(share x,share y);
 void andmn(share *z,share x,share y);
+
+FILE *frandom;
 
 #endif

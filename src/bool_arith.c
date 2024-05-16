@@ -2,12 +2,23 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "bool_arith.h"
+#include "sha512.h"
 
+#ifndef GEN
 void randombytes(uint_word_t *ptr, int size) {
     FILE *frandom = fopen("/dev/urandom", "r");
     fread((ptr), (size), 1, frandom);
     fclose(frandom);
+    rand_count += 1;
 }
+#else
+
+void randombytes(uint_word_t *ptr, int size) {
+    fread((ptr), (size), 1, frandom);
+    printf("rand %x = %lx\n", rand_count, *ptr);
+    rand_count += 1;
+}
+#endif
 
 void bool_share(share s, uint_word_t x) {
     uint_word_t rb = 0;

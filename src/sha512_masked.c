@@ -12,7 +12,8 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
-#include "sha512.h"
+#include "sha512_masked.h"
+#include "bool_arith.h"
 
 /* the K array */
 static const uint64_t K[80] = {
@@ -107,7 +108,7 @@ static const uint64_t K[80] = {
 #endif
 
 /* compress 1024-bits */
-static int sha512_compress(sha512_context *md, unsigned char *buf)
+static int sha512_compress_masked(sha512_context_m *md, unsigned char *buf)
 {
     uint64_t W[80];
     share S[8], W_arith, K_arith, temp1, temp2, ch, maj, sigma1, sigma0;
@@ -128,9 +129,6 @@ static int sha512_compress(sha512_context *md, unsigned char *buf)
         W[i] = Gamma1(W[i - 2]) + W[i - 7] + Gamma0(W[i - 15]) + W[i - 16]; // TODO: mask Gamma1 and Gamma0 
     }        
 
-    // W_arith = arith_share_r(W_arith, W[0]);
-        // printf("%lx \n",arith_comb(W_arith));                                \                                               
-        // printf("%lx \n",arith_comb(K_arith));                                \
 /* Compress */
     #define RND(a,b,c,d,e,f,g,h,i)                                             \
        {W_arith = arith_share_r(W_arith, W[i]);                                                \
@@ -139,28 +137,19 @@ static int sha512_compress(sha512_context *md, unsigned char *buf)
         ch.xr = f.xr ^ g.xr;                                                       \
         ch.xs = andm(e,ch) ^ g.xs;                                                \
         ch.xr = e.xr ^ g.xr;                                                       \
-        printf("ch = %lx \n",bool_comb(ch));                                        \
         maj.xs = andm(a,b) ^ andm(a,c) ^ andm(b,c);                                 \
         maj.xr = b.xr;                                                              \
-        printf("maj = %lx \n",bool_comb(maj));                                                  \
         Sigma1(sigma1, e);                                                         \
-        printf("sigma1 = %lx \n",bool_comb(sigma1));                                                  \
         Sigma0(sigma0, a);                                                        \
-        printf("sigma0 = %lx \n",bool_comb(sigma0));                                                  \
         b2a(&h);                                                                         \
-        printf("h = %lx \n",arith_comb(h));                                                  \
         b2a(&ch);                                                                       \
         b2a(&maj);                                                                   \
         b2a(&sigma1);                                                               \
         b2a(&sigma0);                                                               \
-        printf("W[i] = %lx \n",arith_comb(W_arith));                                \                                               
-        printf("K[i] = %lx \n",arith_comb(K_arith));                                \
         temp1.xs = (h.xs + sigma1.xs + ch.xs + K_arith.xs + W_arith.xs) & MODULO;         \
         temp1.xr = (h.xr + sigma1.xr + ch.xr + K_arith.xr + W_arith.xr) & MODULO;         \
         temp2.xs = (sigma0.xs + maj.xs) & MODULO;                                             \
         temp2.xr = (sigma0.xr + maj.xr) & MODULO;                                             \
-        printf("temp1 = %lx \n",arith_comb(temp1));                                \                                               
-        printf("temp2 = %lx \n",arith_comb(temp2));                                \
         b2a(&d);                                                                    \
         d.xs  = (d.xs + temp1.xs) & MODULO;                                                             \
         d.xr  = (d.xr + temp1.xr) & MODULO;                                                             \
@@ -200,24 +189,6 @@ static int sha512_compress(sha512_context *md, unsigned char *buf)
     b2a(&md->shares[6]);
     b2a(&md->shares[7]);
 
-    printf("S0 = %lx \n",arith_comb(S[0]));
-    printf("S1 = %lx \n",arith_comb(S[1]));
-    printf("S2 = %lx \n",arith_comb(S[2]));
-    printf("S3 = %lx \n",arith_comb(S[3]));
-    printf("S4 = %lx \n",arith_comb(S[4]));
-    printf("S5 = %lx \n",arith_comb(S[5]));
-    printf("S6 = %lx \n",arith_comb(S[6]));
-    printf("S7 = %lx \n",arith_comb(S[7]));
-
-    printf("md->state[0] = %lx \n",arith_comb(md->shares[0]));
-    printf("md->state[1] = %lx \n",arith_comb(md->shares[1]));
-    printf("md->state[2] = %lx \n",arith_comb(md->shares[2]));
-    printf("md->state[3] = %lx \n",arith_comb(md->shares[3]));
-    printf("md->state[4] = %lx \n",arith_comb(md->shares[4]));
-    printf("md->state[5] = %lx \n",arith_comb(md->shares[5]));
-    printf("md->state[6] = %lx \n",arith_comb(md->shares[6]));
-    printf("md->state[7] = %lx \n",arith_comb(md->shares[7]));
-
     /* feedback */
    for (i = 0; i < 8; i++) {
         md->shares[i].xs = (md->shares[i].xs + S[i].xs) & MODULO;
@@ -234,7 +205,7 @@ static int sha512_compress(sha512_context *md, unsigned char *buf)
    @param md   The hash state you wish to initialize
    @return 0 if successful
 */
-int sha512_init(sha512_context *md) {
+int sha512_init_masked(sha512_context_m *md) {
     if (md == NULL) return 1;
 
     md->curlen = 0;
@@ -258,7 +229,7 @@ int sha512_init(sha512_context *md) {
    @param inlen  The length of the data (octets)
    @return 0 if successful
 */
-int sha512_update (sha512_context * md, const unsigned char *in, size_t inlen)               
+int sha512_update_masked(sha512_context_m * md, const unsigned char *in, size_t inlen)               
 {                                                                                           
     size_t n;
     size_t i;                                                                        
@@ -270,7 +241,7 @@ int sha512_update (sha512_context * md, const unsigned char *in, size_t inlen)
     }                                                                                       
     while (inlen > 0) {                                                                     
         if (md->curlen == 0 && inlen >= 128) {                           
-           if ((err = sha512_compress (md, (unsigned char *)in)) != 0) {               
+           if ((err = sha512_compress_masked(md, (unsigned char *)in)) != 0) {               
               return err;                                                                   
            }                                                                                
            md->length += 128 * 8;                                        
@@ -288,7 +259,7 @@ int sha512_update (sha512_context * md, const unsigned char *in, size_t inlen)
            in             += n;                                                             
            inlen          -= n;                                                             
            if (md->curlen == 128) {                                      
-              if ((err = sha512_compress (md, md->buf)) != 0) {            
+              if ((err = sha512_compress_masked(md, md->buf)) != 0) {            
                  return err;                                                                
               }                                                                             
               md->length += 8*128;                                       
@@ -305,7 +276,7 @@ int sha512_update (sha512_context * md, const unsigned char *in, size_t inlen)
    @param out [out] The destination of the hash (64 bytes)
    @return 0 if successful
 */
-int sha512_final(sha512_context * md, unsigned char *out) {
+int sha512_final_masked(sha512_context_m * md, unsigned char *out) {
     int i;
 
     if (md == NULL) return 1;
@@ -329,7 +300,7 @@ int sha512_final(sha512_context * md, unsigned char *out) {
         while (md->curlen < 128) {
             md->buf[md->curlen++] = (unsigned char)0;
         }
-        sha512_compress(md, md->buf);
+        sha512_compress_masked(md, md->buf);
         md->curlen = 0;
     }
 
@@ -343,7 +314,7 @@ int sha512_final(sha512_context * md, unsigned char *out) {
     
         /* store length */
     STORE64H(md->length, md->buf+120);
-    sha512_compress(md, md->buf);
+    sha512_compress_masked(md, md->buf);
     
         /* copy output */
     for (i = 0; i < 8; i++) {
@@ -353,13 +324,13 @@ int sha512_final(sha512_context * md, unsigned char *out) {
     return 0;
 }
 
-int __attribute__ ((noinline)) sha512(const unsigned char *message, size_t message_len, unsigned char *out)
+int __attribute__ ((noinline)) sha512_masked(const unsigned char *message, size_t message_len, unsigned char *out)
 {
-    sha512_context ctx;
+    sha512_context_m ctx;
     int ret;
-    if ((ret = sha512_init(&ctx))) return ret;
-    if ((ret = sha512_update(&ctx, message, message_len))) return ret;
-    if ((ret = sha512_final(&ctx, out))) return ret;
+    if ((ret = sha512_init_masked(&ctx))) return ret;
+    if ((ret = sha512_update_masked(&ctx, message, message_len))) return ret;
+    if ((ret = sha512_final_masked(&ctx, out))) return ret;
     return 0;
 }
 
@@ -369,17 +340,29 @@ void printbytes(uint8_t *array, int size) {
     }
     printf("\n");
 } 
-
+// #ifdef GEN
+// FILE *frandom;
+// #endif
 // Masked SHA512
 int main() {
+    rand_count = 0;
     const unsigned char *message = "Hello, world!";
     size_t message_len = strnlen(message,512);
     unsigned char output[64] = {0};
     printbytes(output, 64);
-    if(sha512(message,message_len,output)){
+    #ifdef GEN
+    frandom = fopen("./bin/rand_gen", "r");
+    #endif
+    if(sha512_masked(message,message_len,output)){
+        // #ifdef GEN
+        // fclose(frandom);
+        // #endif
         printf("Something is wrong");
     }
     printbytes(output, 64);
+
+    printf("rand_count = %u",rand_count);
+
     return 0;
     
 }
