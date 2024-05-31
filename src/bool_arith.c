@@ -99,12 +99,38 @@ void a2b(share *x) {
     x->xs = xb;
 }
 
-uint_word_t andm(share x,share y) {
-    uint_word_t xs = x.xs, xr = x.xr, ys = y.xs, yr = y.xr;
-    return (~ys & (~yr & xr | yr & xs) | ys & (yr & xr | ~yr & xs) & MODULO);
+// uint_word_t andm(share x,share y) {
+//     uint_word_t xs = x.xs, xr = x.xr, ys = y.xs, yr = y.xr;
+//     return (~ys & (~yr & xr | yr & xs) | ys & (yr & xr | ~yr & xs) & MODULO);
+// }
+
+share andm(share x, share y) {
+    share r,z;
+
+    // Initialize random seed
+    randombytes(&r.xs,8);
+
+    // Unrolling the loops
+    r.xs &= rand() & 1;
+    r.xr = (r.xs ^ (x.xs & y.xr)) ^ (x.xr & y.xs);
+
+    z.xs = x.xs & y.xs;
+    z.xs = z.xs ^ r.xs;
+
+    z.xr = x.xr & y.xr;
+    z.xr = z.xr ^ r.xr;
+
+    return z;
 }
 
 void andmn(share *z,share x,share y) {
     uint_word_t xs = x.xs, xr = x.xr, ys = y.xs, yr = y.xr;
     z->xs = ~ys & (~yr & ~xr | yr & ~xs) | ys & (yr & ~xr | ~yr & ~xs) & MODULO;
+}
+
+share xor_share(share x, share y) {
+    share z;
+    z.xs = x.xs ^ y.xs;
+    z.xr = x.xr ^ y.xr;
+    return z;
 }

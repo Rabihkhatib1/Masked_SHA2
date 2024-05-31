@@ -130,18 +130,48 @@ static int sha512_compress_masked(sha512_context_m *md, unsigned char *buf)
     }        
 
 /* Compress */
+    // #define RND(a,b,c,d,e,f,g,h,i)                                             \
+    //    {W_arith = arith_share_r(W_arith, W[i]);                                                \
+    //     K_arith = arith_share_r(K_arith, K[i]);                                                \
+    //     ch.xs = f.xs ^ g.xs;                                                       \
+    //     ch.xr = f.xr ^ g.xr;                                                       \
+    //     ch.xs = andm(e,ch) ^ g.xs;                                                \
+    //     ch.xr = e.xr ^ g.xr;                                                       \
+    //     maj.xs = andm(a,b) ^ andm(a,c) ^ andm(b,c);                                 \
+    //     maj.xr = b.xr;                                                              \
+    //     Sigma1(sigma1, e);                                                         \
+    //     Sigma0(sigma0, a);                                                        \
+    //     b2a(&h);                                                                         \
+    //     b2a(&ch);                                                                       \
+    //     b2a(&maj);                                                                   \
+    //     b2a(&sigma1);                                                               \
+    //     b2a(&sigma0);                                                               \
+    //     temp1.xs = (h.xs + sigma1.xs + ch.xs + K_arith.xs + W_arith.xs) & MODULO;         \
+    //     temp1.xr = (h.xr + sigma1.xr + ch.xr + K_arith.xr + W_arith.xr) & MODULO;         \
+    //     temp2.xs = (sigma0.xs + maj.xs) & MODULO;                                             \
+    //     temp2.xr = (sigma0.xr + maj.xr) & MODULO;                                             \
+    //     b2a(&d);                                                                    \
+    //     d.xs  = (d.xs + temp1.xs) & MODULO;                                                             \
+    //     d.xr  = (d.xr + temp1.xr) & MODULO;                                                             \
+    //     h.xs  = (temp1.xs + temp2.xs) & MODULO;                                                \
+    //     h.xr  = (temp1.xr + temp2.xr) & MODULO;                                                     \
+    //     a2b(&d);                                                                 \
+    //     a2b(&h);}   
+
     #define RND(a,b,c,d,e,f,g,h,i)                                             \
        {W_arith = arith_share_r(W_arith, W[i]);                                                \
         K_arith = arith_share_r(K_arith, K[i]);                                                \
         ch.xs = f.xs ^ g.xs;                                                       \
         ch.xr = f.xr ^ g.xr;                                                       \
-        ch.xs = andm(e,ch) ^ g.xs;                                                \
-        ch.xr = e.xr ^ g.xr;                                                       \
-        maj.xs = andm(a,b) ^ andm(a,c) ^ andm(b,c);                                 \
-        maj.xr = b.xr;                                                              \
+        ch = andm(e,ch);                                                            \
+        ch.xs = ch.xs ^ g.xs;                                                       \
+        ch.xr = ch.xr ^ g.xr;                                                       \
+        maj = andm(a,b);                                                         \
+        maj = xor_share(maj,andm(a,c));                                 \
+        maj = xor_share(maj,andm(b,c));                                 \
         Sigma1(sigma1, e);                                                         \
         Sigma0(sigma0, a);                                                        \
-        b2a(&h);                                                                         \
+        b2a(&h);                                                                       \
         b2a(&ch);                                                                       \
         b2a(&maj);                                                                   \
         b2a(&sigma1);                                                               \

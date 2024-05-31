@@ -35,9 +35,9 @@ uint_word_t arith_comb(share x);
 void b2a(share *x);
 void a2b(share *x);
 
-uint_word_t andm(share x,share y);
+share andm(share x,share y);
 void andmn(share *z,share x,share y);
-
+share xor_share(share x, share y);
 FILE *frandom;
 
 #endif
