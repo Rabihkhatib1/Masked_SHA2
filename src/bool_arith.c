@@ -134,3 +134,30 @@ share xor_share(share x, share y) {
     z.xr = x.xr ^ y.xr;
     return z;
 }
+
+share SecAddGoubin(share x, share y) {
+    share w, a, z, ua;
+    share u = {0};
+
+    // Compute w
+    w = andm(x, y);
+
+    // Compute a
+    a = xor_share(x,y);
+
+    // Perform the loop
+    for (int i = 0; i < 2; ++i) {
+        for (int j = 0; j < 64; ++j) {
+            ua = andm(u, a);
+            u  = xor_share(ua, w); 
+            u.xs = u.xs * 2;
+            u.xr = u.xr * 2;
+        }
+    }
+
+    // Compute z
+    z = xor_share(x,y);
+    z = xor_share(z,u);
+
+    return z;
+}

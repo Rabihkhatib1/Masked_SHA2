@@ -38,6 +38,8 @@ void a2b(share *x);
 share andm(share x,share y);
 void andmn(share *z,share x,share y);
 share xor_share(share x, share y);
+share SecAddGoubin(share x, share y);
+
 FILE *frandom;
 
 #endif

@@ -92,16 +92,16 @@ static const uint64_t K[80] = {
     { (s.xs = S(x.xs, 14) ^ S(x.xs, 18) ^ S(x.xs, 41));  \
       (s.xr = S(x.xr, 14) ^ S(x.xr, 18) ^ S(x.xr, 41));   }
 
-// #define Gamma0(s, x)                                 \  
-//     { (s.xs = S(x.xs, 1) ^ S(x.xs, 8) ^ R(x.xs, 7)); \
-//       (s.xr = S(x.xr, 1) ^ S(x.xr, 8) ^ R(x.xr, 7))  }
+#define Gamma0(s, x)                                 \  
+    { (s.xs = S(x.xs, 1) ^ S(x.xs, 8) ^ R(x.xs, 7)); \
+      (s.xr = S(x.xr, 1) ^ S(x.xr, 8) ^ R(x.xr, 7));  }
       
-// #define Gamma1(s, x)                                   \
-//     { (s.xs = S(x.xs, 19) ^ S(x.xs, 61) ^ R(x.xs, 6)); \
-//       (s.xr = S(x.xr, 19) ^ S(x.xr, 61) ^ R(x.xr, 6))  }
+#define Gamma1(s, x)                                   \
+    { (s.xs = S(x.xs, 19) ^ S(x.xs, 61) ^ R(x.xs, 6)); \
+      (s.xr = S(x.xr, 19) ^ S(x.xr, 61) ^ R(x.xr, 6));  }
 
-#define Gamma0(x)       (S(x, 1) ^ S(x, 8) ^ R(x, 7))
-#define Gamma1(x)       (S(x, 19) ^ S(x, 61) ^ R(x, 6))
+// #define Gamma0(x)       (S(x, 1) ^ S(x, 8) ^ R(x, 7))
+// #define Gamma1(x)       (S(x, 19) ^ S(x, 61) ^ R(x, 6))
 
 #ifndef MIN
    #define MIN(x, y) ( ((x)<(y))?(x):(y) )
@@ -111,7 +111,8 @@ static const uint64_t K[80] = {
 static int sha512_compress_masked(sha512_context_m *md, unsigned char *buf)
 {
     uint64_t W[80];
-    share S[8], W_arith, K_arith, temp1, temp2, ch, maj, sigma1, sigma0;
+    share W_arith[80];
+    share S[8], K_arith, temp1, temp2, ch, maj, sigma1, sigma0;
     int i;
 
     /* copy state into S */
@@ -124,9 +125,18 @@ static int sha512_compress_masked(sha512_context_m *md, unsigned char *buf)
         LOAD64H(W[i], buf + (8*i)); 
     }
 
+    for (i = 0; i < 16; i++) {
+        W_arith[i] = bool_share_r(W_arith[i], W[i]); 
+    }    
+
     /* fill W[16..79] */
     for (i = 16; i < 80; i++) {
-        W[i] = Gamma1(W[i - 2]) + W[i - 7] + Gamma0(W[i - 15]) + W[i - 16]; // TODO: mask Gamma1 and Gamma0 
+        Gamma1(W_arith[i],W_arith[i - 2]);
+        W_arith[i] = SecAddGoubin(W_arith[i],W_arith[i - 7]);
+        Gamma0(temp1, W_arith[i - 15]);
+        W_arith[i] = SecAddGoubin(W_arith[i],temp1);
+        W_arith[i] = SecAddGoubin(W_arith[i],W_arith[i - 16]);
+        // W[i] = Gamma1(W[i - 2]) + W[i - 7] + Gamma0(W[i - 15]) + W[i - 16]; // TODO: mask Gamma1 and Gamma0 
     }        
 
 /* Compress */
@@ -158,14 +168,41 @@ static int sha512_compress_masked(sha512_context_m *md, unsigned char *buf)
     //     a2b(&d);                                                                 \
     //     a2b(&h);}   
 
+    // #define RND(a,b,c,d,e,f,g,h,i)                                             \
+    //    {W_arith = arith_share_r(W_arith, W[i]);                                                \
+    //     K_arith = arith_share_r(K_arith, K[i]);                                                \
+    //     ch.xs = f.xs ^ g.xs;                                                       \
+    //     ch.xr = f.xr ^ g.xr;                                                       \
+    //     ch = andm(e,ch);                                                            \
+    //     ch.xs = ch.xs ^ g.xs;                                                       \
+    //     ch.xr = ch.xr ^ g.xr;                                                       \
+    //     maj = andm(a,b);                                                         \
+    //     maj = xor_share(maj,andm(a,c));                                 \
+    //     maj = xor_share(maj,andm(b,c));                                 \
+    //     Sigma1(sigma1, e);                                                         \
+    //     Sigma0(sigma0, a);                                                        \
+    //     b2a(&h);                                                                       \
+    //     b2a(&ch);                                                                       \
+    //     b2a(&maj);                                                                   \
+    //     b2a(&sigma1);                                                               \
+    //     b2a(&sigma0);                                                               \
+    //     temp1.xs = (h.xs + sigma1.xs + ch.xs + K_arith.xs + W_arith.xs) & MODULO;         \
+    //     temp1.xr = (h.xr + sigma1.xr + ch.xr + K_arith.xr + W_arith.xr) & MODULO;         \
+    //     temp2.xs = (sigma0.xs + maj.xs) & MODULO;                                             \
+    //     temp2.xr = (sigma0.xr + maj.xr) & MODULO;                                             \
+    //     b2a(&d);                                                                    \
+    //     d.xs  = (d.xs + temp1.xs) & MODULO;                                                             \
+    //     d.xr  = (d.xr + temp1.xr) & MODULO;                                                             \
+    //     h.xs  = (temp1.xs + temp2.xs) & MODULO;                                                \
+    //     h.xr  = (temp1.xr + temp2.xr) & MODULO;                                                     \
+    //     a2b(&d);                                                                 \
+    //     a2b(&h);}        
+
     #define RND(a,b,c,d,e,f,g,h,i)                                             \
-       {W_arith = arith_share_r(W_arith, W[i]);                                                \
-        K_arith = arith_share_r(K_arith, K[i]);                                                \
-        ch.xs = f.xs ^ g.xs;                                                       \
-        ch.xr = f.xr ^ g.xr;                                                       \
+       {K_arith = arith_share_r(K_arith, K[i]);                                                \
+        ch = xor_share(f,g);                                                       \
         ch = andm(e,ch);                                                            \
-        ch.xs = ch.xs ^ g.xs;                                                       \
-        ch.xr = ch.xr ^ g.xr;                                                       \
+        ch = xor_share(ch,g);                                                       \
         maj = andm(a,b);                                                         \
         maj = xor_share(maj,andm(a,c));                                 \
         maj = xor_share(maj,andm(b,c));                                 \
@@ -176,8 +213,9 @@ static int sha512_compress_masked(sha512_context_m *md, unsigned char *buf)
         b2a(&maj);                                                                   \
         b2a(&sigma1);                                                               \
         b2a(&sigma0);                                                               \
-        temp1.xs = (h.xs + sigma1.xs + ch.xs + K_arith.xs + W_arith.xs) & MODULO;         \
-        temp1.xr = (h.xr + sigma1.xr + ch.xr + K_arith.xr + W_arith.xr) & MODULO;         \
+        b2a(&W_arith[i]);                                                                   \
+        temp1.xs = (h.xs + sigma1.xs + ch.xs + K_arith.xs + W_arith[i].xs) & MODULO;         \
+        temp1.xr = (h.xr + sigma1.xr + ch.xr + K_arith.xr + W_arith[i].xr) & MODULO;         \
         temp2.xs = (sigma0.xs + maj.xs) & MODULO;                                             \
         temp2.xr = (sigma0.xr + maj.xr) & MODULO;                                             \
         b2a(&d);                                                                    \
@@ -186,7 +224,7 @@ static int sha512_compress_masked(sha512_context_m *md, unsigned char *buf)
         h.xs  = (temp1.xs + temp2.xs) & MODULO;                                                \
         h.xr  = (temp1.xr + temp2.xr) & MODULO;                                                     \
         a2b(&d);                                                                 \
-        a2b(&h);}             
+        a2b(&h);}         
     
     for (i = 0; i < 80; i += 8) {
        RND(S[0],S[1],S[2],S[3],S[4],S[5],S[6],S[7],i+0);
