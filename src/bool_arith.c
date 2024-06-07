@@ -15,7 +15,7 @@ void randombytes(uint_word_t *ptr, int size) {
 
 void randombytes(uint_word_t *ptr, int size) {
     fread((ptr), (size), 1, frandom);
-    printf("rand %x = %lx\n", rand_count, *ptr);
+    // printf("rand %x = %lx\n", rand_count, *ptr);
     rand_count += 1;
 }
 #endif

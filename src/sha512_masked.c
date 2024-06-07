@@ -108,7 +108,7 @@ static const uint64_t K[80] = {
 #endif
 
 /* compress 1024-bits */
-static int sha512_compress_masked(sha512_context_m *md, unsigned char *buf)
+static int sha512_compress_masked(sha512_context_m *md, unsigned char *buf1, unsigned char *buf2)
 {
     uint64_t W[80];
     share W_arith[80];
@@ -122,12 +122,15 @@ static int sha512_compress_masked(sha512_context_m *md, unsigned char *buf)
 
     /* copy the state into 1024-bits into W[0..15] */
     for (i = 0; i < 16; i++) {
-        LOAD64H(W[i], buf + (8*i)); 
+        LOAD64H(W_arith[i].xs, buf1 + (8*i)); 
+    }
+    for (i = 0; i < 16; i++) {
+        LOAD64H(W_arith[i].xr, buf2 + (8*i)); 
     }
 
-    for (i = 0; i < 16; i++) {
-        W_arith[i] = bool_share_r(W_arith[i], W[i]); 
-    }    
+    // for (i = 0; i < 16; i++) {
+    //     W_arith[i] = bool_share_r(W_arith[i], W[i]); 
+    // }    
 
     /* fill W[16..79] */
     for (i = 16; i < 80; i++) {
@@ -275,43 +278,42 @@ int sha512_init_masked(sha512_context_m *md) {
 */
 int sha512_update_masked(sha512_context_m * md, const unsigned char *in, size_t inlen)               
 {                                                                                           
-    size_t n;
-    size_t i;                                                                        
-    int           err;     
-    if (md == NULL) return 1;  
-    if (in == NULL) return 1;                                                              
-    if (md->curlen > sizeof(md->buf)) {                             
-       return 1;                                                            
-    }                                                                                       
-    while (inlen > 0) {                                                                     
-        if (md->curlen == 0 && inlen >= 128) {                           
-           if ((err = sha512_compress_masked(md, (unsigned char *)in)) != 0) {               
-              return err;                                                                   
-           }                                                                                
-           md->length += 128 * 8;                                        
-           in             += 128;                                                    
-           inlen          -= 128;                                                    
-        } else {                                                                            
-           n = MIN(inlen, (128 - md->curlen));
+    // size_t n;
+    // size_t i;                                                                        
+    // int           err;     
+    // if (md == NULL) return 1;  
+    // if (in == NULL) return 1;                                                              
+    // if (md->curlen > sizeof(md->buf)) {                             
+    //    return 1;                                                            
+    // }                                                                                       
+    // while (inlen > 0) {                                                                     
+    //     if (md->curlen == 0 && inlen >= 128) {                           
+    //        if ((err = sha512_compress_masked(md, (unsigned char *)in)) != 0) {               
+    //           return err;                                                                   
+    //        }                                                                                
+    //        md->length += 128 * 8;                                        
+    //        in             += 128;                                                    
+    //        inlen          -= 128;                                                    
+    //     } else {                                                                            
+    //        n = MIN(inlen, (128 - md->curlen));
 
-           for (i = 0; i < n; i++) {
-            md->buf[i + md->curlen] = in[i];
-           }
+    //        for (i = 0; i < n; i++) {
+    //         md->buf[i + md->curlen] = in[i];
+    //        }
 
-
-           md->curlen += n;                                                     
-           in             += n;                                                             
-           inlen          -= n;                                                             
-           if (md->curlen == 128) {                                      
-              if ((err = sha512_compress_masked(md, md->buf)) != 0) {            
-                 return err;                                                                
-              }                                                                             
-              md->length += 8*128;                                       
-              md->curlen = 0;                                                   
-           }                                                                                
-       }                                                                                    
-    }                                                                                       
-    return 0;                                                                        
+    //        md->curlen += n;                                                     
+    //        in             += n;                                                             
+    //        inlen          -= n;                                                             
+    //        if (md->curlen == 128) {                                      
+    //           if ((err = sha512_compress_masked(md, md->buf)) != 0) {            
+    //              return err;                                                                
+    //           }                                                                             
+    //           md->length += 8*128;                                       
+    //           md->curlen = 0;                                                   
+    //        }                                                                                
+    //    }                                                                                    
+    // }                                                                                       
+    // return 0;                                                                        
 }
 
 /**
@@ -320,45 +322,51 @@ int sha512_update_masked(sha512_context_m * md, const unsigned char *in, size_t 
    @param out [out] The destination of the hash (64 bytes)
    @return 0 if successful
 */
-int sha512_final_masked(sha512_context_m * md, unsigned char *out) {
+int sha512_final_masked(sha512_context_m * md, unsigned char *out, const unsigned char *in_s, const unsigned char *in_r, size_t inlen) {
     int i;
 
     if (md == NULL) return 1;
     if (out == NULL) return 1;
 
-    if (md->curlen >= sizeof(md->buf)) {
-     return 1;
-    }
+    // if (md->curlen >= sizeof(md->buf)) {
+    //  return 1;
+    // }
 
     /* increase the length of the message */
-    md->length += md->curlen * (uint64_t)8;
+    // md->length += md->curlen * (uint64_t)8;
 
     /* append the '1' bit */
-    md->buf[md->curlen++] = (unsigned char)0x80;
+    // md->buf[md->curlen++] = (unsigned char)0x80;
 
     /* if the length is currently above 112 bytes we append zeros
      * then compress.  Then we can fall back to padding zeros and length
      * encoding like normal.
      */
-     if (md->curlen > 112) {
-        while (md->curlen < 128) {
-            md->buf[md->curlen++] = (unsigned char)0;
-        }
-        sha512_compress_masked(md, md->buf);
-        md->curlen = 0;
-    }
+    //  if (md->curlen > 112) {
+    //     while (md->curlen < 128) {
+    //         md->buf[md->curlen++] = (unsigned char)0;
+    //     }
+    //     sha512_compress_masked(md, md->buf);
+    //     md->curlen = 0;
+    // }
 
     /* pad upto 120 bytes of zeroes 
      * note: that from 112 to 120 is the 64 MSB of the length.  We assume that you won't hash
      * > 2^64 bits of data... :-)
      */
-    while (md->curlen < 120) {
-        md->buf[md->curlen++] = (unsigned char)0;
-    }
-    
+    // while (md->curlen < 120) {
+    //     md->buf[md->curlen++] = (unsigned char)0;
+    // }
+
+        for (i = 0; i < 128; i++) {
+         md->bufr[i] = in_r[i];
+        }
+        for (i = 0; i < 128; i++) {
+         md->bufs[i] = in_s[i];
+        }
         /* store length */
-    STORE64H(md->length, md->buf+120);
-    sha512_compress_masked(md, md->buf);
+    // STORE64H(md->length, md->buf+120);
+    sha512_compress_masked(md, md->bufs,md->bufr);
     
         /* copy output */
     for (i = 0; i < 8; i++) {
@@ -368,13 +376,13 @@ int sha512_final_masked(sha512_context_m * md, unsigned char *out) {
     return 0;
 }
 
-int __attribute__ ((noinline)) sha512_masked(const unsigned char *message, size_t message_len, unsigned char *out)
+int __attribute__ ((noinline)) sha512_masked(const unsigned char *message_s, const unsigned char *message_r, size_t message_len, unsigned char *out)
 {
     sha512_context_m ctx;
     int ret;
     if ((ret = sha512_init_masked(&ctx))) return ret;
-    if ((ret = sha512_update_masked(&ctx, message, message_len))) return ret;
-    if ((ret = sha512_final_masked(&ctx, out))) return ret;
+    // if ((ret = sha512_update_masked(&ctx, message, message_len))) return ret;
+    if ((ret = sha512_final_masked(&ctx, out, message_s, message_r, message_len))) return ret;
     return 0;
 }
 
@@ -390,22 +398,27 @@ void printbytes(uint8_t *array, int size) {
 // Masked SHA512
 int main() {
     rand_count = 0;
-    const unsigned char *message = "Hello, world!";
+    // const unsigned char *message = "Hello, world!";
+    const unsigned char message[] = {0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x2c, 0x20, 0x77, 0x6f, 0x72, 0x6c, 0x64, 0x21};
+    char message_s[] = {0xf0, 0x8a, 0x5, 0xe2, 0xd0, 0x6, 0x5f, 0xaf, 0x75, 0xbd, 0x70, 0xc8, 0x5b, 0x51, 0x5e, 0x99, 0x51, 0x24, 0xb9, 0x32, 0x4d, 0x8c, 0xea, 0x61, 0x3c, 0xa4, 0xb0, 0x45, 0xc9, 0x70, 0x19, 0x26, 0xe2, 0x3c, 0xf0, 0xe0, 0xae, 0xf1, 0x84, 0x48, 0x6e, 0xdb, 0xce, 0xe9, 0x9a, 0xb0, 0xe1, 0xc7, 0x52, 0x9a, 0x8b, 0x63, 0xfc, 0x3f, 0x58, 0x0, 0x8d, 0x5f, 0xc2, 0x52, 0xe4, 0x55, 0x2, 0x80, 0xb5, 0xe8, 0x28, 0x9b, 0x28, 0x7a, 0xd1, 0xab, 0x7d, 0xe9, 0x48, 0xcc, 0x9e, 0xf5, 0x34, 0x0, 0x7, 0xd, 0x13, 0xf4, 0x2f, 0xfd, 0xf7, 0x91, 0x1a, 0xff, 0x7f, 0x37, 0x69, 0x76, 0x57, 0x5d, 0x6b, 0x27, 0x8, 0x3b, 0x40, 0xc, 0xbf, 0xd8, 0x2, 0x96, 0xf7, 0x4, 0xfd, 0x81, 0x22, 0x3e, 0x94, 0x29, 0x8c, 0xd3, 0x41, 0x4f, 0xa8, 0xc0, 0xc1, 0xb8, 0xc6, 0xf1, 0x5b, 0x72, 0x99, 0xec};
+    char message_r[] = {0xb8, 0xef, 0x69, 0x8e, 0xbf, 0x2a, 0x7f, 0xd8, 0x1a, 0xcf, 0x1c, 0xac, 0x7a, 0xd1, 0x5e, 0x99, 0x51, 0x24, 0xb9, 0x32, 0x4d, 0x8c, 0xea, 0x61, 0x3c, 0xa4, 0xb0, 0x45, 0xc9, 0x70, 0x19, 0x26, 0xe2, 0x3c, 0xf0, 0xe0, 0xae, 0xf1, 0x84, 0x48, 0x6e, 0xdb, 0xce, 0xe9, 0x9a, 0xb0, 0xe1, 0xc7, 0x52, 0x9a, 0x8b, 0x63, 0xfc, 0x3f, 0x58, 0x0, 0x8d, 0x5f, 0xc2, 0x52, 0xe4, 0x55, 0x2, 0x80, 0xb5, 0xe8, 0x28, 0x9b, 0x28, 0x7a, 0xd1, 0xab, 0x7d, 0xe9, 0x48, 0xcc, 0x9e, 0xf5, 0x34, 0x0, 0x7, 0xd, 0x13, 0xf4, 0x2f, 0xfd, 0xf7, 0x91, 0x1a, 0xff, 0x7f, 0x37, 0x69, 0x76, 0x57, 0x5d, 0x6b, 0x27, 0x8, 0x3b, 0x40, 0xc, 0xbf, 0xd8, 0x2, 0x96, 0xf7, 0x4, 0xfd, 0x81, 0x22, 0x3e, 0x94, 0x29, 0x8c, 0xd3, 0x41, 0x4f, 0xa8, 0xc0, 0xc1, 0xb8, 0xc6, 0xf1, 0x5b, 0x72, 0x99, 0x84};
     size_t message_len = strnlen(message,512);
+    // size_t message_len = sizeof(message)-1;
+
     unsigned char output[64] = {0};
     printbytes(output, 64);
     #ifdef GEN
     frandom = fopen("./bin/rand_gen", "r");
     #endif
-    if(sha512_masked(message,message_len,output)){
+    if(sha512_masked(message_s, message_r ,message_len-1,output)){
         // #ifdef GEN
         // fclose(frandom);
         // #endif
         printf("Something is wrong");
     }
     printbytes(output, 64);
-
-    printf("rand_count = %u",rand_count);
+    printf("message_len = %d\n",message_len);
+    printf("rand_count = %u\n",rand_count);
 
     return 0;
     
