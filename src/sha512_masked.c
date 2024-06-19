@@ -110,9 +110,8 @@ static const uint64_t K[80] = {
 /* compress 1024-bits */
 static int sha512_compress_masked(sha512_context_m *md, unsigned char *buf1, unsigned char *buf2)
 {
-    uint64_t W[80];
-    share W_arith[80];
-    share S[8], K_arith, temp1, temp2, ch, maj, sigma1, sigma0;
+    share W_arith[80], W_bool[16];
+    share S[8], temp, temp1, temp2, K_arith, ch, maj, sigma1, sigma0;
     int i;
 
     /* copy state into S */
@@ -122,25 +121,27 @@ static int sha512_compress_masked(sha512_context_m *md, unsigned char *buf1, uns
 
     /* copy the state into 1024-bits into W[0..15] */
     for (i = 0; i < 16; i++) {
-        LOAD64H(W_arith[i].xs, buf1 + (8*i)); 
-    }
-    for (i = 0; i < 16; i++) {
+        LOAD64H(W_bool[i].xs, buf1 + (8*i)); 
+        LOAD64H(W_arith[i].xs, buf1 + (8*i));
+        LOAD64H(W_bool[i].xr, buf2 + (8*i));
         LOAD64H(W_arith[i].xr, buf2 + (8*i)); 
-    }
-
-    // for (i = 0; i < 16; i++) {
-    //     W_arith[i] = bool_share_r(W_arith[i], W[i]); 
-    // }    
+        b2a(&W_arith[i]); 
+    }  
 
     /* fill W[16..79] */
     for (i = 16; i < 80; i++) {
-        Gamma1(W_arith[i],W_arith[i - 2]);
-        W_arith[i] = SecAddGoubin(W_arith[i],W_arith[i - 7]);
-        Gamma0(temp1, W_arith[i - 15]);
-        W_arith[i] = SecAddGoubin(W_arith[i],temp1);
-        W_arith[i] = SecAddGoubin(W_arith[i],W_arith[i - 16]);
-        // W[i] = Gamma1(W[i - 2]) + W[i - 7] + Gamma0(W[i - 15]) + W[i - 16]; // TODO: mask Gamma1 and Gamma0 
+        Gamma1(W_arith[i],W_bool[(i - 2) & 0xF]);
+        Gamma0(temp, W_bool[(i - 15) & 0xF]);
+        b2a(&W_arith[i]);
+        b2a(&temp);
+        W_arith[i].xs = W_arith[i].xs + W_arith[i - 7].xs + temp.xs + W_arith[i-16].xs;
+        W_arith[i].xr = W_arith[i].xr + W_arith[i - 7].xr + temp.xr + W_arith[i-16].xr;
+        W_bool[(i) & 0xF].xs = W_arith[i].xs;
+        W_bool[(i) & 0xF].xr = W_arith[i].xr;
+        a2b(&W_bool[(i) & 0xF]);
     }        
+        
+       
 
 /* Compress */
     // No precomputing message scheduler
@@ -192,7 +193,6 @@ static int sha512_compress_masked(sha512_context_m *md, unsigned char *buf1, uns
         b2a(&maj);                                                                   \
         b2a(&sigma1);                                                               \
         b2a(&sigma0);                                                               \
-        b2a(&W_arith[i]);                                                                   \
         temp1.xs = (h.xs + sigma1.xs + ch.xs + K_arith.xs + W_arith[i].xs) & MODULO;         \
         temp1.xr = (h.xr + sigma1.xr + ch.xr + K_arith.xr + W_arith[i].xr) & MODULO;         \
         temp2.xs = (sigma0.xs + maj.xs) & MODULO;                                             \
