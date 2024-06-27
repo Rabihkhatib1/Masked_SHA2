@@ -439,6 +439,17 @@ void print_share_intlv(const share_intlv* s) {
     printf("  x3 = 0x%08x\n", s->x3);
 }
 
+uint64_t add_interleaved(const share_intlv *s) {
+    uint64_t sum0 = (uint64_t)(s->x0 & 0xFFFF) + (s->x0 >> 16);
+    uint64_t sum1 = (uint64_t)(s->x1 & 0xFFFF) + (s->x1 >> 16);
+    uint64_t sum2 = (uint64_t)(s->x2 & 0xFFFF) + (s->x2 >> 16);
+    uint64_t sum3 = (uint64_t)(s->x3 & 0xFFFF) + (s->x3 >> 16);
+
+    uint64_t result = 0;
+    result |= (sum0 & 0xFFFF) | ((sum1 & 0xFFFF) << 16) | ((sum2 & 0xFFFF) << 32) | ((sum3 & 0xFFFF) << 48);
+    return result & 0xFFFFFFFFFFFFFFFF;
+}
+
 int main() {
     rand_count = 0;
     // const unsigned char *message = "Hello, world!";
@@ -471,6 +482,10 @@ int main() {
     // printf("",b2a(&test));
     print_share(&test);
     print_share_intlv(&test_intlv);
+
+    printf("\nnormal comb = %lx\n", arith_comb(test));
+
+    printf("\ninterlv comb = %lx\n", add_interleaved(&test_intlv));
     return 0;
     
 }

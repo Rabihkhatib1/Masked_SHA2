@@ -75,16 +75,16 @@ void b2a_intlv(share_intlv *x) {
                     (((x->x3 & 0xFFFF) ^ ((y >> 48) & 0xFFFF)) << 48);
 
     T = (T - y) & MODULO;
-    printf("b2a_intlv T = %lx",T);
+    // printf("b2a_intlv T = %lx",T);
     T = ((T & 0xFFFF) ^ (x->x0 & 0xFFFF)) |
         (((T >> 16 & 0xFFFF) ^ (x->x1 & 0xFFFF)) << 16) |
         (((T >> 32 & 0xFFFF) ^ (x->x2 & 0xFFFF)) << 32) |
         (((T >> 48 & 0xFFFF) ^ (x->x3 & 0xFFFF)) << 48);
 
-    y = ((y & 0xFFFF) ^ (x->x0 >> 16)) |
-        (((y >> 16 & 0xFFFF) ^ (x->x1 >> 16)) << 16) |
-        (((y >> 32 & 0xFFFF) ^ (x->x2 >> 16)) << 32) |
-        (((y >> 48 & 0xFFFF) ^ (x->x3 >> 16)) << 48);
+    y = ((y & 0xFFFF) ^ ((x->x0 & 0xFFFF0000) >> 16)) |
+        (((y >> 16 & 0xFFFF) ^ ((x->x1 & 0xFFFF0000) >> 16)) << 16) |
+        (((y >> 32 & 0xFFFF) ^ ((x->x2 & 0xFFFF0000) >> 16)) << 32) |
+        (((y >> 48 & 0xFFFF) ^ ((x->x3 & 0xFFFF0000) >> 16)) << 48);
 
     uint_word_t xa = ((x->x0 & 0xFFFF) ^ (y & 0xFFFF)) |
                      (((x->x1 & 0xFFFF) ^ ((y >> 16) & 0xFFFF)) << 16) |
