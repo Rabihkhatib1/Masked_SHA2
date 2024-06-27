@@ -2,6 +2,8 @@
     "files.associations": {
         "stddef.h": "c",
         "stdint.h": "c",
-        "sha512.h": "c"
+        "sha512.h": "c",
+        "bool_arith.h": "c",
+        "bool_arith_interleaving.h": "c"
     }
 }

@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "bool_arith.h"
-#include "sha512.h"
+#include "sha512_masked.h"
 
 #ifndef GEN
 void randombytes(uint_word_t *ptr, int size) {
@@ -64,8 +64,8 @@ uint_word_t arith_comb(share x){
 }
 
 void b2a(share *x) {
-    uint_word_t y = 0;
-    randombytes(&y,8);
+    uint_word_t y = 0x9234567812312345;
+    // randombytes(&y,8);
     uint_word_t T = x->xs ^ y;
     T = (T - y) & MODULO;
     T = T ^ x->xs;
