@@ -390,8 +390,10 @@ void printbytes(uint8_t *array, int size) {
 // Masked SHA512
 int main() {
     rand_count = 0;
-    const unsigned char *message = "Hello, world!";
+    // const unsigned char *message = "Hello, world!";
+    unsigned char message[] = { 0x50, 0xc1, 0x4b, 0x5b, 0x6b, 0xf0, 0x5c, 0x4e, 0xc1, 0x2b, 0x90, 0x0a, 0x61, 0x36, 0xf6, 0x4d, 0x2d, 0xc3, 0xdd, 0xe3, 0x38, 0xda, 0x02, 0xc1, 0xa8, 0xfc, 0x6d, 0xdc, 0x87, 0x88, 0x1e };
     size_t message_len = strnlen(message,512);
+    printf("message len = %d", message_len);
     unsigned char output[64] = {0};
     printbytes(output, 64);
     #ifdef GEN
