@@ -13,7 +13,7 @@ typedef struct sha512_context_m {
     unsigned char buf[128];
 } sha512_context_m;
 
-#define GEN 1
+// #define GEN 1
 
 int sha512_init_masked(sha512_context_m *md);
 int sha512_final_masked(sha512_context_m *md, unsigned char *out);
